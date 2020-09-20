@@ -18,6 +18,6 @@ RUN apt-get install -y software-properties-common && \
     python3 get-pip.py && \
     rm -rf get-pip.py
 
-RUN pip3 install --noinput numpy fiona shapely
+RUN pip3 install numpy fiona shapely
 
-COPY . /S1GRD_TS
+COPY S1GRD_TS/ /S1GRD_TS
