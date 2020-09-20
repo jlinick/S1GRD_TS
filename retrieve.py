@@ -117,7 +117,7 @@ def download_asf(pol, res, max_results, poly_str, authkey_file, dry_run, workdir
     dry_run_str = ''
     if dry_run:
         dry_run_str = '--dry-run '
-    cmd = '. {} && aria2c --continue {}--dir="{}"--http-auth-challenge=true --http-user="$EARTHDATA_USER" --http-passwd="$EARTHDATA_PASSWORD" "{}"'.format(authkey_file, dry_run_str, workdir, query)
+    cmd = '. {} && aria2c --continue {}--dir="{}" --http-auth-challenge=true --http-user="$EARTHDATA_USER" --http-passwd="$EARTHDATA_PASSWORD" "{}"'.format(authkey_file, dry_run_str, workdir, query)
     #print('system command: {}'.format(cmd))
     subprocess.Popen(cmd, shell=True)
 
