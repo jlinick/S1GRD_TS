@@ -19,7 +19,7 @@ import shapely.geometry
 def main(shapefile=False, workdir=False, pol=False, res='MR', max_results=False, cleanup=False, dry_run=False):
     '''main wrapper script for generating time series'''
     script_dir = os.path.dirname(os.path.realpath(__file__))
-    if not workdir:
+    if workdir is False:
         workdir = os.getcwd()
     if not os.path.exists(workdir):
         os.makedirs(workdir)
@@ -43,7 +43,7 @@ def main(shapefile=False, workdir=False, pol=False, res='MR', max_results=False,
     query_asf(pol, res, max_results, asf_string)
     drystr = ' (dry-run only)' if dry_run else ''
     print('--------------------------------\nDownloading files from ASF...{}'.format(drystr))
-    download_asf(pol, res, max_results, asf_string, authkey_file, dry_run)
+    download_asf(pol, res, max_results, asf_string, authkey_file, dry_run, workdir)
 
     #per zip file:
         #unzip file
@@ -112,12 +112,12 @@ def gen_asf_query(pol, res, max_results, poly_str, retrieve=False):
     qstr = html.escape(query).replace('&amp;', '&')
     return qstr
 
-def download_asf(pol, res, max_results, poly_str, authkey_file, dry_run):
+def download_asf(pol, res, max_results, poly_str, authkey_file, dry_run, workdir):
     query = gen_asf_query(pol, res, max_results, poly_str, retrieve=True)
     dry_run_str = ''
     if dry_run:
         dry_run_str = '--dry-run '
-    cmd = '. {} && aria2c --continue {}--http-auth-challenge=true --http-user="$EARTHDATA_USER" --http-passwd="$EARTHDATA_PASSWORD" "{}"'.format(authkey_file, dry_run_str, query)
+    cmd = '. {} && aria2c --continue {}--dir="{}"--http-auth-challenge=true --http-user="$EARTHDATA_USER" --http-passwd="$EARTHDATA_PASSWORD" "{}"'.format(authkey_file, dry_run_str, workdir, query)
     #print('system command: {}'.format(cmd))
     subprocess.Popen(cmd, shell=True)
 
