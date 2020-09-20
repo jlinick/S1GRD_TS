@@ -10,7 +10,7 @@ for subdir in $(find ${DIR} -maxdepth 1 -name '[0-9]*' -type d); do
         subdir=$(basename ${subdir})
         files=$(find "${DIR}/${subdir}" -name "*.corrected.tiff" -printf '%p ' | sort -u)
         for file in $files
-        if [ ! -f ${DIR}/${subdir}.merged.tiff ]; then
+        if [ ! -f "${DIR}/${subdir}.merged.tiff" ]; then
 	    do
 	        filename="$(basename "${file}")"    # full filename without the path
 	        filebase="$(echo ${filename} | sed 's/.corrected.tiff//g')"  # filename without extension

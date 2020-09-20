@@ -102,8 +102,8 @@ def get_datetime(file_path):
     if dt_string is None:
         # attempt to get datetime from filename
         reg = 'S1.*?([1-2][\d]{3})([0-1][\d])([0-3][\d])T([0-2][\d])([0-6][0-9]).*?.tif[f]?'
-        res = re.search(os.path.basename(file_path))
-        return datetime.datetime(res.group(1),res.group(2),res.group(3),res.group(4),res.group(5))
+        res = re.search(reg, os.path.basename(file_path))
+        return datetime.datetime(int(res.group(1)),int(res.group(2)),int(res.group(3)),int(res.group(4)),int(res.group(5)))
         raise Exception("could not parse metadata field: {} , for datetime.".format(DT_FIELD))
     return datetime.datetime.strptime(dt_string, '%Y:%m:%d %H:%M:%S')
 
