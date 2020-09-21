@@ -147,7 +147,10 @@ def calibrate_file(infolder, outfolder, polarization, basename, wktstring, pixel
         print('Applying terrain correction: {}'.format(terrain)) 
         target_2 = GPF.createProduct("Terrain-Correction", parameters, target_1) 
         ProductIO.writeProduct(target_2, terrain, 'GeoTIFF')
-
+        
+        del target_0
+        del target_1
+        del target_2
         if cleanup is True:
             os.remove(calib + '.dim')
             os.remove(subset + '.dim')
