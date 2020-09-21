@@ -17,7 +17,7 @@ for subdir in $(find ${DIR} -maxdepth 1 -name '[0-9]*' -type d); do
 	    filebase="$(echo ${filename} | sed 's/.corrected.tif//g')"  # filename without extension
 	    warped_file="${filebase}.warped.tiff"
             
-	    gdalwarp -of GTiff -s_srs EPSG:4326 -novshiftgrid -srcnodata 0 -t_srs '+proj=laea +datum=WGS84 +units=m +no_defs' -r near -dstalpha -multi -of GTiff ${file} ${DIR}/${subdir}/${warped_file}
+	    gdalwarp -of GTiff -s_srs EPSG:4326 -novshiftgrid -srcnodata 0 -t_srs EPSG:3031 -r near -dstalpha -multi -of GTiff ${file} ${DIR}/${subdir}/${warped_file}
 	    gdal_translate -of GTiff -scale 0 0.85 0 255 -ot Byte ${DIR}/${subdir}/${warped_file} ${DIR}/${subdir}/${filebase}.translate.tiff
 	    nearblack -of VRT -nb 1 -near 0 -setalpha ${DIR}/${subdir}/${filebase}.translate.tiff
         done
@@ -29,8 +29,7 @@ for subdir in $(find ${DIR} -maxdepth 1 -name '[0-9]*' -type d); do
 
 
         #rm -rf ${DIR}/${subdir}
-        #gdal_translate -of GTiff -scale 200 3000 -ot Byte ${DIR}/${subdir}.merged.tiff ${DIR}/${subdir}.scaled.tiff
-        ####rm ${DIR}/${subdir}.merged.tiff
+        rm ${DIR}/${subdir}.merged.tiff
         #gdal_translate -of PNG ${DIR}/${subdir}.scaled.tiff ${DIR}/${subdir}.png
         #gdalwarp -of GTiff -t_srs EPSG:3031 ${DIR}/${subdir}.scaled.tiff ${DIR}/${subdir}.warped.tiff
     fi

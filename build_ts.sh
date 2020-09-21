@@ -12,6 +12,8 @@ num_procs=32 # number of parallel processes to run concurrently
 folder=$1
 shapefile_path=$2
 burn_shapefile="/S1GRD_TS/aux/coast.shp"
+i=$3 # y-resolution
+j=$4 # x-resolution
 
 function get_size () {
     file_path="${1}"
@@ -51,10 +53,10 @@ if [[ -d "${folder}" ]] ; then
         gdalwarp -overwrite -cutline ${shapefile_path} -crop_to_cutline -srcalpha -dstalpha "${file}" "${warp}"
         
         #burn shapefile onto raster
-        #gdal_rasterize -burn 255 -ts 4000 4000 "${burn_shapefile}" "${burned}"
+        #gdal_rasterize -burn 255 -ts ${i} ${j} "${burn_shapefile}" "${burned}"
 
 	# export as png
-        gdal_translate -of PNG -r nearest -outsize 4000 4000  "${warp}" "${mpg}"
+        gdal_translate -of PNG -r nearest -outsize ${i} ${j}  "${warp}" "${mpg}"
 
         # now we generate an overlay of prior images, to avoid flickering black pixels
         if [ ${iterator} -eq 1 ]; then
