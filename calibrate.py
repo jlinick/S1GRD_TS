@@ -109,48 +109,119 @@ def calibrate_file(infolder, outfolder, polarization, basename, wktstring, pixel
         if basename is False:
             print("folder: {}".format(folder))
             basename = os.path.basename(folder).rstrip('.SAFE')
-        calib = os.path.join(outfolder, '{}.{}.{}.calibrated'.format(basename, pol, pixel_spacing)) 
-        subset = os.path.join(outfolder, '{}.{}.{}.subset'.format(basename, pol, pixel_spacing))
-        terrain = os.path.join(outfolder, '{}.{}.{}.corrected'.format(basename, pol, pixel_spacing))
+        prodpath = os.path.join(outfolder, '{}.{}.{}.{}'.format(basename, pol, int(pixel_spacing), '{}')) 
  
         # read product
-        sentinel_1 = ProductIO.readProduct(os.path.join(infolder, "manifest.safe"))   
+        sentinel_1 = ProductIO.readProduct(os.path.join(infolder, "manifest.safe"))
+        prod_name = sentinel_1.getName()
+        width = sentinel_1.getSceneRasterWidth()
+        height = sentinel_1.getSceneRasterHeight()
+        start_time = sentinel_1.getStartTime()
+        end_time = sentinel_1.getEndTime()
+        print('product name: {}, width: {}, height: {}'.format(prod_name, width, height))
+        print("start time: {}, end time: {}".format(start_time, end_time))
+        
+        ### THERMAL NOISE REMOVAL
+        print('Applying thermal noise removal...')
+        params = HashMap()
+        params.put('removeThermalNoise', True)
+        thermal = GPF.createProduct('ThermalNoiseRemoval', params, sentinel_1)
+        #save_prod(thermal, prodpath.format('thermal'))
+
+        ### APPLY ORBIT FILE
+        print('Applying orbit file...')
+        params = HashMap()
+        #params.put('continueOnFail', True)
+        params.put('outputBetaBand', True)
+        params.put('Apply-Orbit-File', True)
+        params.put('orbitType','Sentinel Precise (Auto Download)')
+        #datestamp = basename.split('_')[4][:8] # YYmmdd
+        orbit = GPF.createProduct('Apply-Orbit-File', params, thermal)
+        #save_prod(orbit, prodpath.format('orbit'))
 
         ### CALIBRATION
-        parameters = HashMap() 
-        parameters.put('outputSigmaBand', True) 
-        parameters.put('sourceBands', 'Intensity_' + pol) 
-        parameters.put('selectedPolarisations', pol) 
-        parameters.put('outputImageScaleInDb', db)  
-        print('Applying radiometric correction: {}'.format(calib))
-        target_0 = GPF.createProduct("Calibration", parameters, sentinel_1) 
-        ProductIO.writeProduct(target_0, calib, 'BEAM-DIMAP')
-        
+        print('Applying radiometric correction...')
+        params = HashMap() 
+        ##params.put('outputSigmaBand', True) 
+        params.put('outputSigmaBand', False)
+        params.put('createBetaBand', True)
+        params.put('outputBetaBand', True) 
+        #params.put('sourceBands', 'Intensity_' + pol) 
+        #params.put('selectedPolarisations', pol) 
+        params.put('outputImageScaleInDb', False)  
+        cal = GPF.createProduct("Calibration", params, orbit) 
+        #ProductIO.writeProduct(target_0, calibfn, 'BEAM-DIMAP')
+        #save_prod(cal, prodpath.format('cal')) # Geotiff or BEAM-DIMAP
+
         ### SUBSET
-        calibration = ProductIO.readProduct(calib + ".dim")    
+        print('Subsetting raster...')
+        #calibration = ProductIO.readProduct(calib + ".dim")    
         WKTReader = snappy.jpy.get_type('com.vividsolutions.jts.io.WKTReader')        
         geom = WKTReader().read(wktstring)
-        parameters = HashMap()
-        parameters.put('geoRegion', geom)
-        parameters.put('outputImageScaleInDb', db)
-        print('Generating subset file: {}'.format(subset))
-        target_1 = GPF.createProduct("Subset", parameters, calibration)
-        ProductIO.writeProduct(target_1, subset, 'BEAM-DIMAP')
-        
+        params = HashMap()
+        params.put('outputBetaBand', True)
+        params.put('geoRegion', geom)
+        params.put('outputImageScaleInDb', False)
+        subset = GPF.createProduct("Subset", params, cal)
+        #save_prod(subset, prodpath.format('subset'), 'BEAM-DIMAP')       
+
+        ### APPLY TERRAIN FLATTENING
+        #print('Applying terrain flattening... (radiometric corrections)')
+        #params = HashMap()
+        ##params.put('outputSigmaBand', True)
+        ##params.put('outputBetaBand', False)
+        #params.put('demName', 'GETASSE30')
+        ##params.put('demResamplingMethod', 'BICUBIC_INTERPOLATION')
+        ##params.put('pixelSpacingInMeter', pixel_spacing)
+        ##params.put('oversamplingMultiple', 1.5)
+        ###params.put('additionalOverlap', 0.1)
+        ##params.put('reGridMethod', True)
+        ##params.put('sourceBands', 'Beta0_' + pol)
+        ##params.put('saveSelectedSourceBand', True)
+        #flat = GPF.createProduct('Terrain-Flattening', params, subset)
+        #save_prod(flat, prodpath.format('flat'), 'BEAM-DIMAP')
+
         ### TERRAIN CORRECTION
-        parameters = HashMap()     
-        parameters.put('demResamplingMethod', 'NEAREST_NEIGHBOUR') 
-        parameters.put('imgResamplingMethod', 'NEAREST_NEIGHBOUR') 
-        parameters.put('demName', 'GETASSE30') 
-        parameters.put('pixelSpacingInMeter', pixel_spacing) 
-        parameters.put('sourceBands', 'Sigma0_' + pol)
-        print('Applying terrain correction: {}'.format(terrain)) 
-        target_2 = GPF.createProduct("Terrain-Correction", parameters, target_1) 
-        ProductIO.writeProduct(target_2, terrain, 'GeoTIFF')
-        
-        del target_0
-        del target_1
-        del target_2
+        print('Applying RD terrain correction... (geometric corrections)') 
+        params = HashMap()     
+        params.put('demResamplingMethod', 'BILINEAR_INTERPOLATION') 
+        #params.put('imgResamplingMethod', 'NEAREST_NEIGHBOUR') 
+        params.put('demName', 'GETASSE30') 
+        params.put('pixelSpacingInMeter', pixel_spacing)
+        #params.put('sourceBands', 'Sigma0_' + pol)
+        params.put('sourceBands', 'Beta0_' + pol)
+        #params.put('mapProjection', 'EPSG:3031')
+        params.put('saveProjectedLocalIncidenceAngle', True)
+        params.put('saveSelectedSourceBand', True)
+        params.put('outputImageScaleInDb', True)
+        terr = GPF.createProduct("Terrain-Correction", params, subset) 
+        save_prod(terr, prodpath.format('terr'))
+
+        ### Orthorectification
+        #print('Applying orthorectification (ellipsoid correction)')
+        #parameters = HashMap()
+        #parameters.put('imgResamplingMethod', 'BILINEAR_INTERPOLATION')
+        #parameters.put('mapProjection', 'EPSG:3031')
+        #ortho = GPF.createProduct('Ellipsoid-Correction-GG', parameters, terr)
+        #save_prod(ortho, 'ortho')
+
+        ### Speckle Filtering
+        #parameters = HashMap()
+        #parameters.put('filter', 'Lee Sigma')
+        #parameters.put('numberofLooks', 1)
+        #parameters.put('windowSize', "9x9")
+        #parameters.put('sigma', 0.9)
+        #parameters.put('targetWindowSize', "9x9")
+        #parameters.put('filter', 'Lee')
+        #parameters.put('filterSizeX', 5)
+        #parameters.put('filterSizeY', 5)
+        #speck = GPF.createProduct('Speckle-Filter', parameters, terr) 
+        #save_prod(speck, prodpath.format('speckle'))
+
+
+        #del target_0
+        #del target_1
+        #del target_2
         if cleanup is True:
             os.remove(calib + '.dim')
             os.remove(subset + '.dim')
@@ -158,6 +229,10 @@ def calibrate_file(infolder, outfolder, polarization, basename, wktstring, pixel
             shutil.rmtree(calib + '.data')
     if cleanup:
         shutil.rmtree(infolder)
+
+def save_prod(prod, prodpath, ftype='GeoTIFF'):
+    ProductIO.writeProduct(prod, prodpath, ftype)
+
 
 def parser():
     '''
