@@ -31,6 +31,10 @@ if [[ -d "${folder}" ]] ; then
     #    ogrmerge.py -src_layer_field_name location -t_srs EPSG:3031 -o ${shapefile_path} ${kml_path} -single
     #fi
 
+    #clip the shapefile
+    clipped_burn_shapefile="clipped.shp"
+    #ogr2ogr -clipsrc "${shapefile_path}" "${clipped_burn_shapefile}" "${burn_shapefile}"
+
     # cut all images to the shapefile
     iterator=1
     matching_files=$(find $folder -name "*.merged.masked.tiff" -printf '%p\n' | sort -u)
@@ -39,8 +43,8 @@ if [[ -d "${folder}" ]] ; then
         filename="$(basename "${file}")"                              # full filename without the path
         filebase="$(echo ${filename} | sed 's/.'"merged.masked.tiff"'//g')"  # filename without extension
         counter=$(printf %03d $iterator)
-        warp="${folder}/${filebase}.${counter}.cropped.vrt"
-	burned="${folder}/${counter}.burned.tiff"
+        warp="${folder}/${filebase}.${counter}.cropped.tif"
+	# burned="${folder}/${counter}.burned.tiff"
         mpg="${folder}/${counter}.mpg.png"
         stacked="${folder}/${counter}.stacked.png"
         annotated="${folder}/${counter}.annotated.png"
@@ -53,9 +57,9 @@ if [[ -d "${folder}" ]] ; then
         gdalwarp -overwrite -cutline ${shapefile_path} -crop_to_cutline -srcalpha -dstalpha "${file}" "${warp}"
         
         #burn shapefile onto raster
-        #gdal_rasterize -burn 255 -ts ${i} ${j} "${burn_shapefile}" "${burned}"
-
-	# export as png
+        #gdal_rasterize -burn 255 -a_nodata 0 -b 1 -ts ${i} ${j} "${clipped_burn_shapefile}" "${warp}"
+        	
+        # export as png
         gdal_translate -of PNG -r nearest -outsize ${i} ${j}  "${warp}" "${mpg}"
 
         # now we generate an overlay of prior images, to avoid flickering black pixels
@@ -68,7 +72,7 @@ if [[ -d "${folder}" ]] ; then
         cp "${stacked}" "${base}"
 
 	# annotate the date onto the image
-        convert "${stacked}" -fill white -stroke '#000C' -strokewidth 2 -gravity Southwest -pointsize 200 -annotate +100+100 "${date}" "${annotated}"
+        convert "${stacked}" -fill white -stroke '#000C' -strokewidth 2 -gravity Southwest -pointsize 100 -annotate +100+100 "${date}" "${annotated}"
         #convert "${stacked}" -fill white -stroke '#000C' -strokewidth 2 -gravity Southwest -pointsize 200 "${date}" "${annotated}"
         iterator=$((iterator+1))
     done
@@ -77,6 +81,7 @@ if [[ -d "${folder}" ]] ; then
 
     rm "${folder}"/*.vrt
     rm "${folder}"/*.xml
+    #rm "${clipped_burn_shapefile}"
     #rm "${folder}"/*."${small_ext}"
     #rm "${folder}"/*.mpg.png
 fi
